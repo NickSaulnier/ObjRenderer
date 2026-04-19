@@ -1,0 +1,51 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  background: var(--bg-0);
+  color: var(--fg-0);
+}
+
+.topRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-1);
+  border-bottom: 1px solid var(--border);
+}
+
+.topRight {
+  padding: 0 12px;
+}
+
+.middleRow {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.viewportWrap {
+  flex: 1;
+  position: relative;
+  display: flex;
+  min-width: 0;
+}
+
+.boot,
+.bootError {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
+  padding: 24px;
+  text-align: center;
+  color: var(--fg-1);
+  font-size: 14px;
+}
+
+.bootError {
+  color: #f3a2a2;
+  white-space: pre-wrap;
+}

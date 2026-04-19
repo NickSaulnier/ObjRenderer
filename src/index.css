@@ -1,0 +1,58 @@
+:root {
+  color-scheme: dark;
+  --bg-0: #1f2023;
+  --bg-1: #2a2b2f;
+  --bg-2: #34353a;
+  --bg-3: #3e3f44;
+  --fg-0: #e8e8ea;
+  --fg-1: #b8b9bd;
+  --fg-2: #85868b;
+  --accent: #2d8fe2;
+  --accent-hover: #4ba1ea;
+  --border: #45464b;
+  --viewport-bg: #f6f6f6;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  font-size: 13px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+body {
+  background: var(--bg-0);
+  color: var(--fg-0);
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  padding: 0;
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+input,
+select {
+  font: inherit;
+  color: inherit;
+}

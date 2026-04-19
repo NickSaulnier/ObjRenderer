@@ -1,0 +1,46 @@
+.panel {
+  width: 220px;
+  background: var(--bg-1);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.header {
+  padding: 12px;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg-1);
+  border-bottom: 1px solid var(--border);
+}
+
+.body {
+  padding: 10px 12px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 4px 0;
+  font-size: 12px;
+}
+
+.label {
+  color: var(--fg-2);
+}
+
+.value {
+  color: var(--fg-0);
+  font-variant-numeric: tabular-nums;
+}
+
+.separator {
+  margin: 8px 0;
+  border-top: 1px solid var(--border);
+}

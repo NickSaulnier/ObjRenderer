@@ -1,0 +1,21 @@
+.viewport {
+  position: relative;
+  background: var(--viewport-bg);
+  overflow: hidden;
+  height: 100%;
+  width: 100%;
+  touch-action: none;
+  outline: 1px solid var(--border);
+}
+
+.viewport canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+.dragOver {
+  outline: 2px dashed var(--accent);
+  outline-offset: -4px;
+}

@@ -1,0 +1,32 @@
+.toggle {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  height: 26px;
+}
+
+.button {
+  padding: 0 10px;
+  height: 100%;
+  background: var(--bg-2);
+  color: var(--fg-1);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-right: 1px solid var(--border);
+}
+
+.button:last-child {
+  border-right: none;
+}
+
+.button[data-active='true'] {
+  background: var(--accent);
+  color: white;
+}
+
+.button:not([data-active='true']):not(:disabled):hover {
+  background: var(--bg-3);
+  color: var(--fg-0);
+}

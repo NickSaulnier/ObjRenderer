@@ -1,0 +1,42 @@
+.banner {
+  position: absolute;
+  top: 48px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 100;
+  pointer-events: none;
+}
+
+.row {
+  background: #5a2424;
+  border: 1px solid #803131;
+  color: #fdeaea;
+  padding: 6px 10px 6px 14px;
+  border-radius: 4px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  pointer-events: auto;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+.message {
+  white-space: pre-wrap;
+  max-width: 620px;
+}
+
+.close {
+  color: inherit;
+  padding: 0 4px;
+  line-height: 1;
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+.close:hover {
+  opacity: 1;
+}
