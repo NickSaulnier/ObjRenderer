@@ -159,7 +159,6 @@ export class WebGLRenderer implements Renderer {
     const vao = gl.createVertexArray();
     if (!vao) throw new Error('Failed to create VAO');
     this.vao = vao;
-
     this.resize(canvas.width, canvas.height, 1);
   }
 
@@ -272,7 +271,7 @@ export class WebGLRenderer implements Renderer {
       gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
       gl.clearBufferfv(gl.COLOR, 0, [0, 0, 0, 0]);
     }
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null)
     this.accumulatedSamples = 0;
     this.readTex = 'A';
     this.emitStats();
@@ -433,12 +432,38 @@ export class WebGLRenderer implements Renderer {
 
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   }
+  // #region agent log
+  private loggedPresentPath = false;
+  // #endregion
 
   private presentToCanvas(): void {
     const gl = this.gl;
     const accumTex = this.readTex === 'A' ? this.accumTexA : this.accumTexB;
     if (!accumTex || !this.ispTex) return;
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    // #region agent log
+    if (!this.loggedPresentPath) {
+      this.loggedPresentPath = true;
+      fetch('http://127.0.0.1:7719/ingest/de3c24c4-8167-4023-bc66-f9898e9ad18c', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '3f5efc' },
+        body: JSON.stringify({
+          sessionId: '3f5efc',
+          runId: 'post-revert',
+          hypothesisId: 'H2',
+          location: 'WebGLRenderer.ts:presentToCanvas',
+          message: 'WebGL present path executed after reverting debug readback probe',
+          data: {
+            width: this.width,
+            height: this.height,
+            cameraMode: this.mode,
+            readTex: this.readTex,
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+    }
+    // #endregion
     gl.viewport(0, 0, this.width, this.height);
     gl.useProgram(this.presentProgram);
     gl.bindVertexArray(this.vao);
@@ -471,7 +496,7 @@ export class WebGLRenderer implements Renderer {
     this.presentToCanvas();
     const gl = this.gl;
     const pixels = new Uint8Array(this.width * this.height * 4);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null)
     gl.readPixels(0, 0, this.width, this.height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
     const out = new Uint8ClampedArray(this.width * this.height * 4);
     const rowBytes = this.width * 4;
@@ -582,7 +607,7 @@ export class WebGLRenderer implements Renderer {
     };
     const a = make();
     const b = make();
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null)
     return { texA: a.tex, texB: b.tex, fboA: a.fbo, fboB: b.fbo };
   }
 
@@ -678,7 +703,7 @@ function createFramebuffer(gl: WebGL2RenderingContext, tex: WebGLTexture): WebGL
   if (status !== gl.FRAMEBUFFER_COMPLETE) {
     throw new Error('Framebuffer incomplete: 0x' + status.toString(16));
   }
-  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null)
   return fbo;
 }
 
@@ -698,3 +723,6 @@ function sensorCfaCode(cfa: SensorModel['cfa']): number {
       return 1;
   }
 }
+
+
+

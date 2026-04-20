@@ -19,13 +19,17 @@ vec3 acesTonemap(vec3 x) {
 }
 
 void main() {
+  // Match WebGPU present.wgsl: flip V so texture samples align with accum layout from path trace
+  // (sensor.y = 1 - pix.y/h*2, same as WebGPU gid.y -> ndc_y).
+  vec2 uv = vec2(vUv.x, 1.0 - vUv.y);
+
   if (uCameraMode == 1u) {
-    vec3 c = texture(uIsp, vUv).rgb;
+    vec3 c = texture(uIsp, uv).rgb;
     fragColor = vec4(clamp(c, 0.0, 1.0), 1.0);
     return;
   }
 
-  vec4 data = texture(uAccum, vUv);
+  vec4 data = texture(uAccum, uv);
   float samples = max(data.w, 1.0);
   vec3 color = data.xyz / samples;
   color = acesTonemap(color);
