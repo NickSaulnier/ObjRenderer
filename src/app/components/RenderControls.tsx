@@ -1,6 +1,10 @@
+import { useEffect, useRef, useState } from 'react';
 import styles from './RenderControls.module.css';
 import { useEngine } from '../AppContext';
 import { useEngineState } from '../hooks/useEngineState';
+import { useDebouncedCallback } from '../hooks/useDebouncedCallback';
+
+const SLIDER_DEBOUNCE_MS = 120;
 
 export function RenderControls(): React.ReactNode {
   const engine = useEngine();
@@ -11,9 +15,23 @@ export function RenderControls(): React.ReactNode {
     const v = Math.max(1, Math.min(4096, parseInt(e.target.value, 10) || 1));
     engine.setSettings({ targetSpp: v });
   };
+
+  const [bouncesLocal, setBouncesLocal] = useState<number>(settings.maxBounces);
+  const lastCommittedBounces = useRef<number>(settings.maxBounces);
+  useEffect(() => {
+    if (settings.maxBounces !== lastCommittedBounces.current) {
+      lastCommittedBounces.current = settings.maxBounces;
+      setBouncesLocal(settings.maxBounces);
+    }
+  }, [settings.maxBounces]);
+  const commitBounces = useDebouncedCallback((v: number) => {
+    lastCommittedBounces.current = v;
+    engine.setSettings({ maxBounces: v });
+  }, SLIDER_DEBOUNCE_MS);
   const onBouncesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const v = Math.max(1, Math.min(16, parseInt(e.target.value, 10) || 1));
-    engine.setSettings({ maxBounces: v });
+    setBouncesLocal(v);
+    commitBounces(v);
   };
 
   const progress = Math.min(1, stats.accumulatedSamples / Math.max(1, settings.targetSpp));
@@ -38,7 +56,7 @@ export function RenderControls(): React.ReactNode {
           min={1}
           max={16}
           step={1}
-          value={settings.maxBounces}
+          value={bouncesLocal}
           onChange={onBouncesChange}
           className={styles.slider}
           title="Maximum number of diffuse path-tracing bounces per ray."
@@ -47,7 +65,7 @@ export function RenderControls(): React.ReactNode {
           className={styles.sliderValue}
           title="Maximum number of diffuse path-tracing bounces per ray."
         >
-          {settings.maxBounces}
+          {bouncesLocal}
         </div>
       </Field>
       <button

@@ -1,6 +1,8 @@
+import { useEffect, useRef, useState } from 'react';
 import styles from './CameraPanel.module.css';
 import { useEngine } from '../AppContext';
 import { useEngineState } from '../hooks/useEngineState';
+import { useDebouncedCallback } from '../hooks/useDebouncedCallback';
 
 export function CameraPanel(): React.ReactNode {
   const engine = useEngine();
@@ -454,6 +456,8 @@ function NumberRow(props: {
   );
 }
 
+const SLIDER_DEBOUNCE_MS = 120;
+
 function SliderRow(props: {
   label: string;
   value: number;
@@ -463,7 +467,29 @@ function SliderRow(props: {
   onChange: (v: number) => void;
   tooltip: string;
 }): React.ReactNode {
-  const safe = Number.isFinite(props.value) ? props.value : 0;
+  const safeProp = Number.isFinite(props.value) ? props.value : 0;
+  const [local, setLocal] = useState<number>(safeProp);
+  const lastCommitted = useRef<number>(safeProp);
+
+  useEffect(() => {
+    if (safeProp !== lastCommitted.current) {
+      lastCommitted.current = safeProp;
+      setLocal(safeProp);
+    }
+  }, [safeProp]);
+
+  const commit = useDebouncedCallback((v: number) => {
+    lastCommitted.current = v;
+    props.onChange(v);
+  }, SLIDER_DEBOUNCE_MS);
+
+  const handle = (raw: string) => {
+    const v = parseFloat(raw);
+    const next = Number.isFinite(v) ? v : 0;
+    setLocal(next);
+    commit(next);
+  };
+
   return (
     <div className={styles.sliderRow}>
       <div className={styles.label} title={props.tooltip}>
@@ -472,21 +498,21 @@ function SliderRow(props: {
       <input
         className={styles.slider}
         type="range"
-        value={safe}
+        value={local}
         min={props.min}
         max={props.max}
         step={props.step}
-        onChange={(e) => props.onChange(parseFloat(e.target.value))}
+        onChange={(e) => handle(e.target.value)}
         title={props.tooltip}
       />
       <input
         className={styles.sliderNumber}
         type="number"
-        value={safe}
+        value={local}
         min={props.min}
         max={props.max}
         step={props.step}
-        onChange={(e) => props.onChange(parseFloat(e.target.value) || 0)}
+        onChange={(e) => handle(e.target.value)}
         title={props.tooltip}
       />
     </div>
