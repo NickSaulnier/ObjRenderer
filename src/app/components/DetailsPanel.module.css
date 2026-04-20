@@ -1,7 +1,8 @@
 .panel {
-  width: 220px;
-  background: var(--bg-1);
-  border-left: 1px solid var(--border);
+  width: 100%;
+  background: transparent;
+  border-left: none;
+  border-bottom: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -29,6 +30,7 @@
   align-items: baseline;
   padding: 4px 0;
   font-size: 12px;
+  gap: 8px;
 }
 
 .label {
@@ -38,6 +40,7 @@
 .value {
   color: var(--fg-0);
   font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 
 .separator {

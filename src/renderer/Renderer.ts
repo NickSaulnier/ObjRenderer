@@ -1,7 +1,11 @@
 import type { CameraSnapshot } from '../scene/Camera';
 import type { FlatBVH } from '../bvh/BVH';
+import type { LensModel } from '../camera/LensModel';
+import type { SensorModel } from '../camera/SensorModel';
+import type { ISPConfig } from '../camera/ISP';
 
 export type BackendKind = 'webgpu' | 'webgl';
+export type CameraMode = 'photoreal-preview' | 'sensor-capture';
 
 export interface RenderSettings {
   targetSpp: number;
@@ -21,12 +25,23 @@ export interface RendererEventMap {
 
 export type RendererListener = (stats: RenderStats) => void;
 
+export interface RawCapture {
+  width: number;
+  height: number;
+  data: Float32Array;
+  metadata: Record<string, unknown>;
+}
+
 export interface Renderer {
   readonly backend: BackendKind;
 
   init(canvas: HTMLCanvasElement): Promise<void>;
   setScene(bvh: FlatBVH): void;
   setCamera(camera: CameraSnapshot): void;
+  setLens(lens: LensModel): void;
+  setSensor(sensor: SensorModel): void;
+  setISP(isp: ISPConfig): void;
+  setCameraMode(mode: CameraMode): void;
   setSettings(settings: RenderSettings): void;
   resize(width: number, height: number, dpr: number): void;
   resetAccumulation(): void;
@@ -34,6 +49,7 @@ export interface Renderer {
   getStats(): RenderStats;
   onStats(listener: RendererListener): () => void;
   readPixels(): Promise<{ width: number; height: number; data: Uint8ClampedArray }>;
+  captureRaw(): Promise<RawCapture>;
   dispose(): void;
 }
 

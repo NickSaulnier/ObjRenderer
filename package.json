@@ -17,7 +17,8 @@
   "dependencies": {
     "gl-matrix": "^3.4.4",
     "react": "^19.2.5",
-    "react-dom": "^19.2.5"
+    "react-dom": "^19.2.5",
+    "upng-js": "^2.1.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",

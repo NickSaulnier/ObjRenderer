@@ -4,10 +4,7 @@ export interface CameraSnapshot {
   position: [number, number, number];
   target: [number, number, number];
   up: [number, number, number];
-  fovY: number;
   aspect: number;
-  near: number;
-  far: number;
   viewProj: Float32Array;
   view: Float32Array;
   invView: Float32Array;
@@ -18,6 +15,7 @@ export class Camera {
   position = vec3.fromValues(0, 0, 3);
   target = vec3.fromValues(0, 0, 0);
   up = vec3.fromValues(0, 1, 0);
+  // Pose + projection state; fov is now driven by LensModel in Engine.
   fovY = (45 * Math.PI) / 180;
   aspect = 1;
   near = 0.01;
@@ -64,10 +62,7 @@ export class Camera {
       position: [this.position[0], this.position[1], this.position[2]],
       target: [this.target[0], this.target[1], this.target[2]],
       up: [this.up[0], this.up[1], this.up[2]],
-      fovY: this.fovY,
       aspect: this.aspect,
-      near: this.near,
-      far: this.far,
       viewProj: this.viewProj as Float32Array,
       view: this.view as Float32Array,
       invView: this.invView as Float32Array,

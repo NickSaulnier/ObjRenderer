@@ -20,12 +20,13 @@ fn vs(@builtin(vertex_index) vi: u32) -> VSOut {
 struct PresentUBO {
   width: u32,
   height: u32,
-  _pad0: u32,
+  mode: u32,
   _pad1: u32,
 };
 
 @group(0) @binding(0) var<uniform> info: PresentUBO;
 @group(0) @binding(1) var<storage, read> accum: array<vec4<f32>>;
+@group(0) @binding(2) var<storage, read> ispOut: array<vec4<f32>>;
 
 fn acesTonemap(x: vec3<f32>) -> vec3<f32> {
   let a = 2.51;
@@ -46,6 +47,11 @@ fn fs(in: VSOut) -> @location(0) vec4<f32> {
   if (px >= i32(info.width)) { px = i32(info.width) - 1; }
   if (py >= i32(info.height)) { py = i32(info.height) - 1; }
   let idx = u32(py) * info.width + u32(px);
+
+  if (info.mode == 1u) {
+    return vec4<f32>(clamp(ispOut[idx].xyz, vec3<f32>(0.0), vec3<f32>(1.0)), 1.0);
+  }
+
   let data = accum[idx];
   let samples = max(data.w, 1.0);
   var color = data.xyz / samples;

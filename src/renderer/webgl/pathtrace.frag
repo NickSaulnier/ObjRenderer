@@ -13,6 +13,14 @@ uniform uint uMaxBounces;
 uniform uint uTriCount;
 uniform uint uNodeCount;
 
+uniform float uLensFocalLengthMm;
+uniform float uLensFNumber;
+uniform float uLensFocusDistanceM;
+uniform float uSensorWidthMm;
+uniform float uSensorHeightMm;
+uniform vec4 uLensDistortionA; // k1,k2,k3,p1
+uniform vec4 uLensDistortionB; // p2, rollingEnabled, lineTimeUs, pad
+
 uniform sampler2D uPrevAccum;
 uniform sampler2D uBvh;
 uniform sampler2D uTris;
@@ -32,6 +40,38 @@ uint pcgHash(uint v) {
 float randf(inout uint state) {
   state = pcgHash(state);
   return float(state) * (1.0 / 4294967296.0);
+}
+
+vec2 rand2Disk(inout uint state) {
+  float r = sqrt(randf(state));
+  float t = randf(state) * 6.28318530718;
+  return vec2(cos(t), sin(t)) * r;
+}
+
+vec2 distortBrownConrady(vec2 p) {
+  float x = p.x;
+  float y = p.y;
+  float r2 = x * x + y * y;
+  float r4 = r2 * r2;
+  float r6 = r4 * r2;
+  float k1 = uLensDistortionA.x;
+  float k2 = uLensDistortionA.y;
+  float k3 = uLensDistortionA.z;
+  float p1 = uLensDistortionA.w;
+  float p2 = uLensDistortionB.x;
+  float radial = 1.0 + k1 * r2 + k2 * r4 + k3 * r6;
+  float tx = 2.0 * p1 * x * y + p2 * (r2 + 2.0 * x * x);
+  float ty = p1 * (r2 + 2.0 * y * y) + 2.0 * p2 * x * y;
+  return vec2(x * radial + tx, y * radial + ty);
+}
+
+vec2 undistortBrownConrady(vec2 pd) {
+  vec2 p = pd;
+  for (int i = 0; i < 5; i++) {
+    vec2 f = distortBrownConrady(p);
+    p += (pd - f);
+  }
+  return p;
 }
 
 vec4 fetchBvh(uint index) {
@@ -218,14 +258,26 @@ void main() {
 
   float jx = randf(state);
   float jy = randf(state);
-  vec2 ndc = vec2(
+  vec2 sensor = vec2(
     (float(pix.x) + jx) / float(uResolution.x) * 2.0 - 1.0,
-    (float(pix.y) + jy) / float(uResolution.y) * 2.0 - 1.0
+    1.0 - (float(pix.y) + jy) / float(uResolution.y) * 2.0
   );
-  vec4 pNear = uInvProj * vec4(ndc, 0.0, 1.0);
-  vec3 dirView = normalize(pNear.xyz / pNear.w);
-  vec3 dirWorld = normalize((uInvView * vec4(dirView, 0.0)).xyz);
-  vec3 ro = uCamPos;
+
+  vec2 und = undistortBrownConrady(sensor);
+
+  vec4 pNear = uInvProj * vec4(und, 0.0, 1.0);
+  vec3 baseDirView = normalize(pNear.xyz / pNear.w);
+
+  float focusDist = max(0.01, uLensFocusDistanceM);
+  vec3 focusPointView = baseDirView * focusDist;
+
+  float apertureRadiusM = (uLensFocalLengthMm / max(0.7, uLensFNumber)) * 0.5 * 0.001;
+  vec2 apertureDisk = rand2Disk(state) * apertureRadiusM;
+  vec3 lensOriginView = vec3(apertureDisk, 0.0);
+  vec3 dofDirView = normalize(focusPointView - lensOriginView);
+
+  vec3 ro = (uInvView * vec4(lensOriginView, 1.0)).xyz;
+  vec3 dirWorld = normalize((uInvView * vec4(dofDirView, 0.0)).xyz);
 
   vec3 color = pathTrace(ro, dirWorld, state);
 

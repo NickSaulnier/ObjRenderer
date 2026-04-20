@@ -4,6 +4,23 @@ struct CameraUBO {
   camPos: vec4<f32>,
 };
 
+struct LensUBO {
+  focalLengthMm: f32,
+  fNumber: f32,
+  focusDistanceM: f32,
+  sensorWidthMm: f32,
+  sensorHeightMm: f32,
+  k1: f32,
+  k2: f32,
+  k3: f32,
+  p1: f32,
+  p2: f32,
+  rollingEnabled: u32,
+  lineTimeUs: f32,
+  _padA: u32,
+  _padB: u32,
+};
+
 struct FrameUBO {
   frameSeed: u32,
   sampleIndex: u32,
@@ -20,6 +37,7 @@ struct FrameUBO {
 @group(0) @binding(2) var<storage, read_write> accum: array<vec4<f32>>;
 @group(0) @binding(3) var<storage, read> bvh: array<vec4<f32>>;
 @group(0) @binding(4) var<storage, read> tris: array<vec4<f32>>;
+@group(0) @binding(5) var<uniform> lens: LensUBO;
 
 fn pcgHash(v: u32) -> u32 {
   var x = v * 747796405u + 2891336453u;
@@ -30,6 +48,33 @@ fn pcgHash(v: u32) -> u32 {
 fn randf(state: ptr<function, u32>) -> f32 {
   *state = pcgHash(*state);
   return f32(*state) * (1.0 / 4294967296.0);
+}
+
+fn rand2Disk(state: ptr<function, u32>) -> vec2<f32> {
+  let r = sqrt(randf(state));
+  let t = randf(state) * 6.28318530718;
+  return vec2<f32>(cos(t), sin(t)) * r;
+}
+
+fn distortBrownConrady(x: f32, y: f32) -> vec2<f32> {
+  let r2 = x * x + y * y;
+  let r4 = r2 * r2;
+  let r6 = r4 * r2;
+  let radial = 1.0 + lens.k1 * r2 + lens.k2 * r4 + lens.k3 * r6;
+  let tx = 2.0 * lens.p1 * x * y + lens.p2 * (r2 + 2.0 * x * x);
+  let ty = lens.p1 * (r2 + 2.0 * y * y) + 2.0 * lens.p2 * x * y;
+  return vec2<f32>(x * radial + tx, y * radial + ty);
+}
+
+fn undistortBrownConrady(xd: f32, yd: f32) -> vec2<f32> {
+  var x = xd;
+  var y = yd;
+  for (var i: i32 = 0; i < 5; i = i + 1) {
+    let f = distortBrownConrady(x, y);
+    x = x + (xd - f.x);
+    y = y + (yd - f.y);
+  }
+  return vec2<f32>(x, y);
 }
 
 fn skyColor(dir: vec3<f32>) -> vec3<f32> {
@@ -233,15 +278,26 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
 
   let jx = randf(&state);
   let jy = randf(&state);
-  let ndc = vec2<f32>(
+  let sensor = vec2<f32>(
     (f32(gid.x) + jx) / f32(frame.width) * 2.0 - 1.0,
     1.0 - (f32(gid.y) + jy) / f32(frame.height) * 2.0,
   );
 
-  let pNear = camera.invProj * vec4<f32>(ndc, 0.0, 1.0);
-  let dirView = normalize(pNear.xyz / pNear.w);
-  let dirWorld = normalize((camera.invView * vec4<f32>(dirView, 0.0)).xyz);
-  let ro = camera.camPos.xyz;
+  let und = undistortBrownConrady(sensor.x, sensor.y);
+
+  let pNear = camera.invProj * vec4<f32>(und, 0.0, 1.0);
+  let baseDirView = normalize(pNear.xyz / pNear.w);
+
+  let focusDist = max(0.01, lens.focusDistanceM);
+  let focusPointView = baseDirView * focusDist;
+
+  let apertureRadiusM = (lens.focalLengthMm / max(0.7, lens.fNumber)) * 0.5 * 0.001;
+  let apertureDisk = rand2Disk(&state) * apertureRadiusM;
+  let lensOriginView = vec3<f32>(apertureDisk, 0.0);
+  let dofDirView = normalize(focusPointView - lensOriginView);
+
+  let ro = (camera.invView * vec4<f32>(lensOriginView, 1.0)).xyz;
+  let dirWorld = normalize((camera.invView * vec4<f32>(dofDirView, 0.0)).xyz);
 
   let color = pathTrace(ro, dirWorld, &state);
   let prev = accum[idx];

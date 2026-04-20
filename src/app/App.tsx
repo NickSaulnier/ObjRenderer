@@ -10,6 +10,7 @@ import { Viewport } from './components/Viewport';
 import { RenderControls } from './components/RenderControls';
 import { BackendToggle } from './components/BackendToggle';
 import { ErrorBanner } from './components/ErrorBanner';
+import { CameraPanel } from './components/CameraPanel';
 
 type BootState =
   | { kind: 'probing' }
@@ -39,7 +40,7 @@ export function App(): React.ReactNode {
   }, []);
 
   if (boot.kind === 'probing') {
-    return <div className={styles.boot}>Probing GPU capabilities…</div>;
+    return <div className={styles.boot}>Probing GPU capabilities�</div>;
   }
   if (boot.kind === 'error') {
     return <div className={styles.bootError}>{boot.message}</div>;
@@ -51,12 +52,13 @@ function AppMain({ caps }: { caps: BackendCapabilities }): React.ReactNode {
   const engineRef = useRef<Engine | null>(null);
   const [, forceUpdate] = useState(0);
 
-  if (!engineRef.current) {
+  if (engineRef.current == null) {
     engineRef.current = new Engine();
   }
 
   useEffect(() => {
-    const engine = engineRef.current!;
+    const engine = engineRef.current;
+    if (!engine) return;
     const container = document.querySelector<HTMLDivElement>('[data-engine-container]');
     if (!container) return;
     let disposed = false;
@@ -86,7 +88,10 @@ function AppMain({ caps }: { caps: BackendCapabilities }): React.ReactNode {
             <Viewport />
             <ErrorBanner />
           </div>
-          <DetailsPanel />
+          <div className={styles.rightColumn}>
+            <DetailsPanel />
+            <CameraPanel />
+          </div>
         </div>
         <RenderControls />
       </div>

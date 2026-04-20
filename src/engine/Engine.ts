@@ -3,11 +3,29 @@ import { OrbitControls } from '../scene/OrbitControls';
 import { Scene } from '../scene/Scene';
 import { Mesh, isEmptyBounds } from '../scene/Mesh';
 import { type FlatBVH } from '../bvh/BVH';
-import type { BackendKind, RenderSettings, RenderStats, Renderer } from '../renderer/Renderer';
+import type {
+  BackendKind,
+  CameraMode,
+  RenderSettings,
+  RenderStats,
+  Renderer,
+} from '../renderer/Renderer';
 import { WebGPURenderer } from '../renderer/webgpu/WebGPURenderer';
 import { WebGLRenderer } from '../renderer/webgl/WebGLRenderer';
 import type { ObjWorkerError, ObjWorkerRequest, ObjWorkerResponse } from '../workers/objWorker';
 import type { BvhWorkerError, BvhWorkerRequest, BvhWorkerResponse } from '../workers/bvhWorker';
+import {
+  DEFAULT_LENS,
+  lensAspect,
+  lensFovY,
+  normalizeLens,
+  type LensModel,
+} from '../camera/LensModel';
+import { DEFAULT_SENSOR, normalizeSensor, type SensorModel } from '../camera/SensorModel';
+import { DEFAULT_ISP, normalizeISP, type ISPConfig } from '../camera/ISP';
+import { CAMERA_PRESETS, findPreset } from '../camera/presets';
+import UPNG from 'upng-js';
+import { validateFlatField, type ValidationResult } from '../camera/validation';
 
 export interface EngineState {
   backend: BackendKind | null;
@@ -15,11 +33,23 @@ export interface EngineState {
   stats: RenderStats;
   loading: { objs: number; bvhs: number };
   errors: string[];
+  lens: LensModel;
+  sensor: SensorModel;
+  isp: ISPConfig;
+  cameraMode: CameraMode;
+  presetId: string;
+  flatFieldValidation: ValidationResult | null;
 }
 
 type StateListener = (state: EngineState) => void;
 
 const DEFAULT_SETTINGS: RenderSettings = { targetSpp: 256, maxBounces: 6 };
+
+export interface CapturedFrame {
+  rgbPng: Blob;
+  rawPng: Blob;
+  metadata: Record<string, unknown>;
+}
 
 export class Engine {
   readonly scene = new Scene();
@@ -46,6 +76,12 @@ export class Engine {
     stats: { accumulatedSamples: 0, converged: false, width: 0, height: 0 },
     loading: { objs: 0, bvhs: 0 },
     errors: [],
+    lens: normalizeLens(DEFAULT_LENS),
+    sensor: normalizeSensor(DEFAULT_SENSOR),
+    isp: normalizeISP(DEFAULT_ISP),
+    cameraMode: 'photoreal-preview',
+    presetId: CAMERA_PRESETS[0]?.id ?? 'custom',
+    flatFieldValidation: null,
   };
   private listeners = new Set<StateListener>();
 
@@ -90,6 +126,10 @@ export class Engine {
     if (this.renderer) {
       this.renderer.setScene(makeEmptyBVH());
       this.renderer.setCamera(this.camera.snapshot());
+      this.renderer.setLens(this.state.lens);
+      this.renderer.setSensor(this.state.sensor);
+      this.renderer.setISP(this.state.isp);
+      this.renderer.setCameraMode(this.state.cameraMode);
       this.renderer.setSettings(this.state.settings);
       this.renderer.resetAccumulation();
     }
@@ -103,10 +143,134 @@ export class Engine {
     if (this.renderer) {
       this.uploadSceneToRenderer();
       this.renderer.setCamera(this.camera.snapshot());
+      this.renderer.setLens(this.state.lens);
+      this.renderer.setSensor(this.state.sensor);
+      this.renderer.setISP(this.state.isp);
+      this.renderer.setCameraMode(this.state.cameraMode);
       this.renderer.setSettings(this.state.settings);
       this.renderer.resetAccumulation();
     }
     this.requestFrame();
+  }
+
+  setLens(partial: Partial<LensModel>): void {
+    const next = normalizeLens({ ...this.state.lens, ...partial });
+    this.state = {
+      ...this.state,
+      lens: next,
+      flatFieldValidation: null,
+      presetId: this.state.presetId === 'custom' ? 'custom' : this.state.presetId,
+    };
+    this.camera.fovY = lensFovY(next);
+    this.camera.markDirty();
+    this.renderer?.setLens(next);
+    this.renderer?.setCamera(this.camera.snapshot());
+    this.renderer?.resetAccumulation();
+    this.emit();
+    this.requestFrame();
+  }
+
+  setLensDistortion(patch: Partial<LensModel['distortion']>): void {
+    this.setLens({
+      distortion: {
+        ...this.state.lens.distortion,
+        ...patch,
+      },
+    });
+  }
+
+  setRollingShutter(patch: Partial<LensModel['rollingShutter']>): void {
+    this.setLens({
+      rollingShutter: {
+        ...this.state.lens.rollingShutter,
+        ...patch,
+      },
+    });
+  }
+
+  setSensor(partial: Partial<SensorModel>): void {
+    const next = normalizeSensor({ ...this.state.sensor, ...partial });
+    this.state = {
+      ...this.state,
+      sensor: next,
+      flatFieldValidation: null,
+      presetId: this.state.presetId === 'custom' ? 'custom' : this.state.presetId,
+    };
+    this.renderer?.setSensor(next);
+    this.renderer?.resetAccumulation();
+    this.emit();
+    this.requestFrame();
+  }
+
+  setISP(partial: Partial<ISPConfig>): void {
+    const next = normalizeISP({ ...this.state.isp, ...partial });
+    this.state = {
+      ...this.state,
+      isp: next,
+      flatFieldValidation: null,
+      presetId: this.state.presetId === 'custom' ? 'custom' : this.state.presetId,
+    };
+    this.renderer?.setISP(next);
+    this.renderer?.resetAccumulation();
+    this.emit();
+    this.requestFrame();
+  }
+
+  setCameraMode(mode: CameraMode): void {
+    this.state = { ...this.state, cameraMode: mode, flatFieldValidation: null };
+    this.renderer?.setCameraMode(mode);
+    this.renderer?.resetAccumulation();
+    this.emit();
+    this.requestFrame();
+  }
+
+  applyCameraPreset(presetId: string): void {
+    const preset = findPreset(presetId);
+    if (!preset) return;
+    const lens = normalizeLens(preset.lens);
+    const sensor = normalizeSensor(preset.sensor);
+    const isp = normalizeISP(preset.isp);
+    this.state = {
+      ...this.state,
+      lens,
+      sensor,
+      isp,
+      presetId: preset.id,
+      flatFieldValidation: null,
+    };
+    this.camera.fovY = lensFovY(lens);
+    this.camera.markDirty();
+    this.renderer?.setLens(lens);
+    this.renderer?.setSensor(sensor);
+    this.renderer?.setISP(isp);
+    this.renderer?.setCamera(this.camera.snapshot());
+    this.renderer?.resetAccumulation();
+    this.emit();
+    this.requestFrame();
+  }
+
+  getCameraPresets(): ReadonlyArray<{ id: string; label: string }> {
+    return CAMERA_PRESETS.map((p) => ({ id: p.id, label: p.label }));
+  }
+
+  async validateFlatFieldCapture(): Promise<ValidationResult | null> {
+    if (!this.renderer) return null;
+    const raw = await this.renderer.captureRaw();
+    const result = validateFlatField(this.state.sensor, raw.data);
+    this.state = {
+      ...this.state,
+      flatFieldValidation: result,
+    };
+    this.emit();
+    return result;
+  }
+
+  private syncLensAspect(width: number, height: number): void {
+    const fallback = width / Math.max(1, height);
+    const lensAspectValue = lensAspect(this.state.lens);
+    const aspect =
+      Number.isFinite(lensAspectValue) && lensAspectValue > 0 ? lensAspectValue : fallback;
+    this.camera.setAspect(aspect);
   }
 
   private async createRenderer(backend: BackendKind): Promise<void> {
@@ -127,6 +291,10 @@ export class Engine {
     this.renderer = renderer;
     renderer.setScene(makeEmptyBVH());
     renderer.setCamera(this.camera.snapshot());
+    renderer.setLens(this.state.lens);
+    renderer.setSensor(this.state.sensor);
+    renderer.setISP(this.state.isp);
+    renderer.setCameraMode(this.state.cameraMode);
     renderer.setSettings(this.state.settings);
     this.rendererUnsub = renderer.onStats((stats) => {
       this.state = { ...this.state, stats };
@@ -172,7 +340,7 @@ export class Engine {
     this.canvas.style.width = `${cssWidth}px`;
     this.canvas.style.height = `${cssHeight}px`;
     this.renderer.resize(cssWidth, cssHeight, dpr);
-    this.camera.setAspect(cssWidth / Math.max(1, cssHeight));
+    this.syncLensAspect(cssWidth, cssHeight);
     this.renderer.setCamera(this.camera.snapshot());
     this.requestFrame();
   }
@@ -252,7 +420,7 @@ export class Engine {
       for (const g of res.groups) {
         if (g.indices.length === 0) continue;
         const name = g.name && g.name.trim().length > 0 ? g.name : fallbackName;
-        const mesh = new Mesh(added === 0 ? name : `${fallbackName} · ${name}`, {
+        const mesh = new Mesh(added === 0 ? name : `${fallbackName} � ${name}`, {
           positions: g.positions,
           normals: g.normals,
           indices: g.indices,
@@ -293,6 +461,40 @@ export class Engine {
     return await new Promise<Blob | null>((resolve) =>
       canvas.toBlob((b) => resolve(b), 'image/png'),
     );
+  }
+
+  async capture(): Promise<CapturedFrame | null> {
+    if (!this.renderer) return null;
+    const rgbPng = await this.saveImage();
+    if (!rgbPng) return null;
+
+    const raw = await this.renderer.captureRaw();
+    const rawPng = encodeRawPng16(raw.width, raw.height, raw.data, this.state.sensor.bitDepth);
+    const metadata: Record<string, unknown> = {
+      width: raw.width,
+      height: raw.height,
+      cfa: this.state.sensor.cfa,
+      bitDepth: this.state.sensor.bitDepth,
+      blackLevel: this.state.sensor.blackLevel,
+      whiteLevel: (1 << this.state.sensor.bitDepth) - 1,
+      exposureSec: this.state.sensor.exposureSec,
+      gain: this.state.sensor.gain,
+      iso: this.state.sensor.iso,
+      focalLengthMm: this.state.lens.focalLengthMm,
+      fNumber: this.state.lens.fNumber,
+      focusDistanceM: this.state.lens.focusDistanceM,
+      distortion: this.state.lens.distortion,
+      sensorPitchUm: this.state.sensor.pixelPitchUm,
+      wbGains: this.state.isp.wbGains,
+      ccm: [
+        this.state.isp.ccm.slice(0, 3),
+        this.state.isp.ccm.slice(3, 6),
+        this.state.isp.ccm.slice(6, 9),
+      ],
+      rollingShutter: this.state.lens.rollingShutter,
+      ...raw.metadata,
+    };
+    return { rgbPng, rawPng, metadata };
   }
 
   dispose(): void {
@@ -441,4 +643,16 @@ function makeEmptyBVH(): FlatBVH {
     boundsMin: [0, 0, 0],
     boundsMax: [0, 0, 0],
   };
+}
+
+function encodeRawPng16(width: number, height: number, data: Float32Array, bitDepth: number): Blob {
+  const maxDn = (1 << bitDepth) - 1;
+  const bytes = new ArrayBuffer(width * height * 2);
+  const view = new DataView(bytes);
+  for (let i = 0; i < width * height; i++) {
+    const v = Math.max(0, Math.min(maxDn, Math.round(data[i] || 0)));
+    view.setUint16(i * 2, v, false);
+  }
+  const png = UPNG.encodeLL([bytes], width, height, 1, 0, 16);
+  return new Blob([png], { type: 'image/png' });
 }
