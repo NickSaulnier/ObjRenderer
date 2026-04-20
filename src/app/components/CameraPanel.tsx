@@ -122,7 +122,7 @@ function LensGroup(): React.ReactNode {
   return (
     <div className={styles.group}>
       <div className={styles.groupTitle}>Lens</div>
-      <NumberRow
+      <SliderRow
         label="Focal (mm)"
         value={lens.focalLengthMm}
         onChange={(v) => engine.setLens({ focalLengthMm: v })}
@@ -131,7 +131,7 @@ function LensGroup(): React.ReactNode {
         max={500}
         step={0.1}
       />
-      <NumberRow
+      <SliderRow
         label="f-number"
         value={lens.fNumber}
         onChange={(v) => engine.setLens({ fNumber: v })}
@@ -149,7 +149,7 @@ function LensGroup(): React.ReactNode {
         max={1000}
         step={0.01}
       />
-      <NumberRow
+      <SliderRow
         label="Sensor W (mm)"
         value={lens.sensorWidthMm}
         onChange={(v) => engine.setLens({ sensorWidthMm: v })}
@@ -158,7 +158,7 @@ function LensGroup(): React.ReactNode {
         max={100}
         step={0.1}
       />
-      <NumberRow
+      <SliderRow
         label="Sensor H (mm)"
         value={lens.sensorHeightMm}
         onChange={(v) => engine.setLens({ sensorHeightMm: v })}
@@ -167,7 +167,7 @@ function LensGroup(): React.ReactNode {
         max={100}
         step={0.1}
       />
-      <NumberRow
+      <SliderRow
         label="k1"
         value={lens.distortion.k1}
         onChange={(v) => engine.setLensDistortion({ k1: v })}
@@ -176,7 +176,7 @@ function LensGroup(): React.ReactNode {
         max={2}
         step={0.0001}
       />
-      <NumberRow
+      <SliderRow
         label="k2"
         value={lens.distortion.k2}
         onChange={(v) => engine.setLensDistortion({ k2: v })}
@@ -185,7 +185,7 @@ function LensGroup(): React.ReactNode {
         max={2}
         step={0.0001}
       />
-      <NumberRow
+      <SliderRow
         label="k3"
         value={lens.distortion.k3}
         onChange={(v) => engine.setLensDistortion({ k3: v })}
@@ -194,7 +194,7 @@ function LensGroup(): React.ReactNode {
         max={2}
         step={0.0001}
       />
-      <NumberRow
+      <SliderRow
         label="p1"
         value={lens.distortion.p1}
         onChange={(v) => engine.setLensDistortion({ p1: v })}
@@ -203,7 +203,7 @@ function LensGroup(): React.ReactNode {
         max={1}
         step={0.0001}
       />
-      <NumberRow
+      <SliderRow
         label="p2"
         value={lens.distortion.p2}
         onChange={(v) => engine.setLensDistortion({ p2: v })}
@@ -238,7 +238,7 @@ function SensorGroup(): React.ReactNode {
           <option value="GBRG">GBRG</option>
         </select>
       </div>
-      <NumberRow
+      <SliderRow
         label="Pitch (um)"
         value={sensor.pixelPitchUm}
         onChange={(v) => engine.setSensor({ pixelPitchUm: v })}
@@ -256,7 +256,7 @@ function SensorGroup(): React.ReactNode {
         max={200000}
         step={10}
       />
-      <NumberRow
+      <SliderRow
         label="Read noise"
         value={sensor.readNoiseE}
         onChange={(v) => engine.setSensor({ readNoiseE: v })}
@@ -274,7 +274,7 @@ function SensorGroup(): React.ReactNode {
         max={1000}
         step={0.001}
       />
-      <NumberRow
+      <SliderRow
         label="PRNU std"
         value={sensor.prnuStd}
         onChange={(v) => engine.setSensor({ prnuStd: v })}
@@ -283,7 +283,7 @@ function SensorGroup(): React.ReactNode {
         max={0.25}
         step={0.001}
       />
-      <NumberRow
+      <SliderRow
         label="DSNU (e-)"
         value={sensor.dsnuStdE}
         onChange={(v) => engine.setSensor({ dsnuStdE: v })}
@@ -292,7 +292,7 @@ function SensorGroup(): React.ReactNode {
         max={100}
         step={0.01}
       />
-      <NumberRow
+      <SliderRow
         label="Gain"
         value={sensor.gain}
         onChange={(v) => engine.setSensor({ gain: v })}
@@ -301,7 +301,7 @@ function SensorGroup(): React.ReactNode {
         max={32}
         step={0.01}
       />
-      <NumberRow
+      <SliderRow
         label="Bit depth"
         value={sensor.bitDepth}
         onChange={(v) => engine.setSensor({ bitDepth: Math.round(v) })}
@@ -386,7 +386,7 @@ function ISPGroup(): React.ReactNode {
   return (
     <div className={styles.group}>
       <div className={styles.groupTitle}>ISP</div>
-      <NumberRow
+      <SliderRow
         label="WB R"
         value={isp.wbGains[0]}
         onChange={(v) => engine.setISP({ wbGains: [v, isp.wbGains[1], isp.wbGains[2]] })}
@@ -395,7 +395,7 @@ function ISPGroup(): React.ReactNode {
         max={8}
         step={0.01}
       />
-      <NumberRow
+      <SliderRow
         label="WB G"
         value={isp.wbGains[1]}
         onChange={(v) => engine.setISP({ wbGains: [isp.wbGains[0], v, isp.wbGains[2]] })}
@@ -404,7 +404,7 @@ function ISPGroup(): React.ReactNode {
         max={8}
         step={0.01}
       />
-      <NumberRow
+      <SliderRow
         label="WB B"
         value={isp.wbGains[2]}
         onChange={(v) => engine.setISP({ wbGains: [isp.wbGains[0], isp.wbGains[1], v] })}
@@ -413,7 +413,7 @@ function ISPGroup(): React.ReactNode {
         max={8}
         step={0.01}
       />
-      <NumberRow
+      <SliderRow
         label="Gamma"
         value={isp.gamma}
         onChange={(v) => engine.setISP({ gamma: v })}
@@ -444,6 +444,45 @@ function NumberRow(props: {
         className={styles.input}
         type="number"
         value={Number.isFinite(props.value) ? props.value : 0}
+        min={props.min}
+        max={props.max}
+        step={props.step}
+        onChange={(e) => props.onChange(parseFloat(e.target.value) || 0)}
+        title={props.tooltip}
+      />
+    </div>
+  );
+}
+
+function SliderRow(props: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  onChange: (v: number) => void;
+  tooltip: string;
+}): React.ReactNode {
+  const safe = Number.isFinite(props.value) ? props.value : 0;
+  return (
+    <div className={styles.sliderRow}>
+      <div className={styles.label} title={props.tooltip}>
+        {props.label}
+      </div>
+      <input
+        className={styles.slider}
+        type="range"
+        value={safe}
+        min={props.min}
+        max={props.max}
+        step={props.step}
+        onChange={(e) => props.onChange(parseFloat(e.target.value))}
+        title={props.tooltip}
+      />
+      <input
+        className={styles.sliderNumber}
+        type="number"
+        value={safe}
         min={props.min}
         max={props.max}
         step={props.step}

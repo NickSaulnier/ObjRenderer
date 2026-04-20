@@ -34,15 +34,21 @@ export function RenderControls(): React.ReactNode {
       </Field>
       <Field label="Max bounces">
         <input
-          type="number"
+          type="range"
           min={1}
           max={16}
           step={1}
           value={settings.maxBounces}
           onChange={onBouncesChange}
-          className={styles.input}
+          className={styles.slider}
           title="Maximum number of diffuse path-tracing bounces per ray."
         />
+        <div
+          className={styles.sliderValue}
+          title="Maximum number of diffuse path-tracing bounces per ray."
+        >
+          {settings.maxBounces}
+        </div>
       </Field>
       <button
         className={styles.button}
