@@ -432,38 +432,11 @@ export class WebGLRenderer implements Renderer {
 
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   }
-  // #region agent log
-  private loggedPresentPath = false;
-  // #endregion
-
   private presentToCanvas(): void {
     const gl = this.gl;
     const accumTex = this.readTex === 'A' ? this.accumTexA : this.accumTexB;
     if (!accumTex || !this.ispTex) return;
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    // #region agent log
-    if (!this.loggedPresentPath) {
-      this.loggedPresentPath = true;
-      fetch('http://127.0.0.1:7719/ingest/de3c24c4-8167-4023-bc66-f9898e9ad18c', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '3f5efc' },
-        body: JSON.stringify({
-          sessionId: '3f5efc',
-          runId: 'post-revert',
-          hypothesisId: 'H2',
-          location: 'WebGLRenderer.ts:presentToCanvas',
-          message: 'WebGL present path executed after reverting debug readback probe',
-          data: {
-            width: this.width,
-            height: this.height,
-            cameraMode: this.mode,
-            readTex: this.readTex,
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-    }
-    // #endregion
     gl.viewport(0, 0, this.width, this.height);
     gl.useProgram(this.presentProgram);
     gl.bindVertexArray(this.vao);
