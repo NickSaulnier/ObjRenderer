@@ -29,6 +29,7 @@ export function RenderControls(): React.ReactNode {
           value={settings.targetSpp}
           onChange={onSppChange}
           className={styles.input}
+          title="Target samples per pixel before the renderer pauses accumulation."
         />
       </Field>
       <Field label="Max bounces">
@@ -40,9 +41,14 @@ export function RenderControls(): React.ReactNode {
           value={settings.maxBounces}
           onChange={onBouncesChange}
           className={styles.input}
+          title="Maximum number of diffuse path-tracing bounces per ray."
         />
       </Field>
-      <button className={styles.button} onClick={() => engine.resetAccumulation()}>
+      <button
+        className={styles.button}
+        onClick={() => engine.resetAccumulation()}
+        title="Clear the accumulated samples and restart rendering from zero."
+      >
         Reset
       </button>
       <div className={styles.progress}>
